@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "images": [
+    {
+      "id": "2panel-style1",
+      "url": "https://github.com/LuisAlvarez12/QPAssets/layout/images/2panel-style1.png",
+      "filename": "2panel-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "4panel-style1",
+      "url": "https://github.com/LuisAlvarez12/QPAssets/layout/images/4panel-style1.png",
+      "filename": "4panel-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "4panel-style2",
+      "url": "https://github.com/LuisAlvarez12/QPAssets/layout/images/4panel-style2.png",
+      "filename": "4panel-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "5panel-style1",
+      "url": "https://github.com/LuisAlvarez12/QPAssets/layout/images/5panel-style1.png",
+      "filename": "5panel-style1.png",
+      "checksum": "1"
+    }
+  ]
+}
+
