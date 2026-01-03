@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "Example Manga Template",
+      "url": "https://github.com/LuisAlvarez12/QPAssets/templates/json/Example Manga Template.json"
+    },
+    {
+      "id": "Example Comic",
+      "url": "https://github.com/LuisAlvarez12/QPAssets/templates/json/Example Comic.json"
+    }
+  ]
+}
+

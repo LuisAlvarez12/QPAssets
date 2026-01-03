@@ -1,0 +1,49 @@
+{
+  "colorPalette" : {
+    "colors" : [
+      "#303030",
+      "#6E6E6E",
+      "#989898",
+      "#EAEAEA",
+      "#0088FF"
+    ]
+  },
+  "exportDate" : "2025-12-31T17:31:59Z",
+  "name" : "Manga panels w pages",
+  "pageConfigs" : [
+    {
+      "height" : 1200,
+      "id" : "DA83F9D2-31F3-4C6D-94C1-6CF071B398F5",
+      "layoutFilename" : "4panel-style1.png",
+      "name" : "Cover",
+      "sortIndex" : 0,
+      "width" : 800
+    },
+    {
+      "height" : 1200,
+      "id" : "4400F51A-0005-43BB-A106-753AAE1FFAB2",
+      "layoutFilename" : "4panel-style2.png",
+      "name" : "Page 2",
+      "sortIndex" : 1,
+      "width" : 1600
+    },
+    {
+      "height" : 1200,
+      "id" : "ECA3B984-A091-43ED-B6DF-3D3EF523327F",
+      "layoutFilename" : "5panel-style1.png",
+      "name" : "Page 3",
+      "sortIndex" : 2,
+      "width" : 800
+    },
+    {
+      "height" : 1200,
+      "id" : "",
+      "layoutFilename" : "5panel-style1.png",
+      "name" : "End",
+      "sortIndex" : 3,
+      "width" : 800
+    }
+  ],
+  "templateDescription" : "Wip",
+  "version" : 1
+}
