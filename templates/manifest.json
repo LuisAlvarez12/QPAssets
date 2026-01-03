@@ -3,11 +3,11 @@
   "templates": [
     {
       "id": "Example Manga Template",
-      "url": "https://github.com/LuisAlvarez12/QPAssets/templates/json/Example Manga Template.json"
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/templates/json/Example-Manga-Template.json"
     },
     {
       "id": "Example Comic",
-      "url": "https://github.com/LuisAlvarez12/QPAssets/templates/json/Example Comic.json"
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/templates/json/Example-Comic-Template.json"
     }
   ]
 }
