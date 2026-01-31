@@ -3,28 +3,105 @@
   "images": [
     {
       "id": "2panel-style1",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/2panel-style1.png",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/2panel/2panel-style1.png",
       "filename": "2panel-style1.png",
       "checksum": "1"
     },
     {
+      "id": "2panel-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/2panel/2panel-style2.png",
+      "filename": "2panel-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "2panel-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/2panel/2panel-style3.png",
+      "filename": "2panel-style3.png",
+      "checksum": "1"
+    },
+    {
+      "id": "3panel-style1",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/3panel/3panel-style1.png",
+      "filename": "3panel-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "3panel-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/3panel/3panel-style2.png",
+      "filename": "3panel-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "3panel-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/3panel/3panel-style3.png",
+      "filename": "3panel-style3.png",
+      "checksum": "1"
+    },
+    {
       "id": "4panel-style1",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel-style1.png",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/4panel-style1.png",
       "filename": "4panel-style1.png",
       "checksum": "1"
     },
     {
       "id": "4panel-style2",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel-style2.png",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/4panel-style2.png",
       "filename": "4panel-style2.png",
       "checksum": "1"
     },
     {
+      "id": "4panel-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/4panel-style3.png",
+      "filename": "4panel-style3.png",
+      "checksum": "1"
+    },
+    {
+      "id": "4panel-style4",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/4panel-style4.png",
+      "filename": "4panel-style4.png",
+      "checksum": "1"
+    },
+    {
+      "id": "4panel-style5",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/4panel-style5.png",
+      "filename": "4panel-style5.png",
+      "checksum": "1"
+    },
+    {
       "id": "5panel-style1",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/5panel-style1.png",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/5panel-style1.png",
       "filename": "5panel-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "5panel-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/5panel-style2.png",
+      "filename": "5panel-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "5panel-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/5panel-style3.png",
+      "filename": "5panel-style3.png",
+      "checksum": "1"
+    },
+    {
+      "id": "6panel-style1",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/6panel-style1.png",
+      "filename": "6panel-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "6panel-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/6panel-style2.png",
+      "filename": "6panel-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "6panel-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/layout/images/4panel/6panel-style3.png",
+      "filename": "6panel-style3.png",
       "checksum": "1"
     }
   ]
 }
-
