@@ -8,9 +8,9 @@
       "checksum": "1"
     },
     {
-      "id": "icon-heart-style2",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/icon-heart-style2.png",
-      "filename": "icon-heart-style2.png",
+      "id": "icon-heart-style-2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/icon-heart-style-2.png",
+      "filename": "icon-heart-style-2.png",
       "checksum": "1"
     },
     {
@@ -35,12 +35,6 @@
       "id": "rash-lines-vertical",
       "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/rash-lines-vertical.png",
       "filename": "rash-lines-vertical.png",
-      "checksum": "1"
-    },
-    {
-      "id": "speech-bubble",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-bubble.png",
-      "filename": "speech-bubble.png",
       "checksum": "1"
     },
     {
@@ -83,12 +77,6 @@
       "id": "tone-style1",
       "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/tone-style1.png",
       "filename": "tone-style1.png",
-      "checksum": "1"
-    },
-    {
-      "id": "tone-style2",
-      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/tone-style2.png",
-      "filename": "tone-style2.png",
       "checksum": "1"
     },
     {

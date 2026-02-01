@@ -5,15 +5,16 @@
 ║                   A Modern Image Compression Tool                              ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 
-A sophisticated image compression utility with a modern GUI interface.
+A sophisticated image compression utility with a modern web-based GUI interface.
 Reduces file sizes while maintaining visual quality and original dimensions.
 
 FEATURES:
 ---------
-• Clean GUI with image grid preview
+• Modern web-based GUI (works in any browser)
+• Grid view with image previews
 • Individual or batch image compression
 • Preserves original image dimensions
-• Multiple compression algorithms (Pillow, PIL optimization)
+• Multiple compression algorithms
 • Real-time compression statistics
 • Before/after file size comparison
 • Backup original files option
@@ -43,9 +44,9 @@ JPEG Files:
 USAGE:
 ------
 1. Run the script: python image_compressor.py
-2. The GUI will scan for images in the project directory
+2. Open http://localhost:8080 in your browser
 3. Select images to compress (or select all)
-4. Click "Compress Selected" or "Compress All"
+4. Click "Compress Selected"
 5. Review compression results
 
 DEPENDENCIES:
@@ -61,17 +62,20 @@ LICENSE: MIT
 import os
 import sys
 import io
+import json
 import shutil
+import base64
 import threading
-import tkinter as tk
-from tkinter import ttk, messagebox
+import webbrowser
 from pathlib import Path
-from typing import List, Dict, Tuple, Optional, Callable
-from dataclasses import dataclass
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+from urllib.parse import parse_qs, urlparse
+from typing import List, Dict, Tuple, Optional
+from dataclasses import dataclass, asdict
 
 # Third-party imports
 try:
-    from PIL import Image, ImageTk
+    from PIL import Image
 except ImportError as e:
     print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
@@ -93,67 +97,13 @@ Error details: {e}
 
 @dataclass
 class CompressionConfig:
-    """
-    Configuration settings for image compression.
-
-    Attributes:
-        quality: JPEG quality (1-100). Higher = better quality, larger file.
-                 Default 85 provides ~90% perceived quality.
-        png_optimize: Enable PNG optimization (removes unnecessary chunks).
-        png_compress_level: PNG compression level (0-9). Higher = smaller file.
-        preserve_metadata: Keep EXIF and other metadata.
-        create_backup: Create backup of original files before compression.
-        backup_suffix: Suffix added to backup filenames.
-        output_format: Optional format conversion (None = keep original).
-        progressive_jpeg: Use progressive JPEG encoding.
-    """
+    """Configuration settings for image compression."""
     quality: int = 85
     png_optimize: bool = True
     png_compress_level: int = 9
-    preserve_metadata: bool = False
     create_backup: bool = True
     backup_suffix: str = "_original"
-    output_format: Optional[str] = None
     progressive_jpeg: bool = True
-
-
-@dataclass
-class ImageInfo:
-    """
-    Data class storing information about an image file.
-
-    Attributes:
-        path: Absolute path to the image file.
-        filename: Name of the file without directory.
-        original_size: File size in bytes before compression.
-        compressed_size: File size in bytes after compression (None if not compressed).
-        dimensions: Tuple of (width, height) in pixels.
-        format: Image format (PNG, JPEG, etc.).
-        has_alpha: Whether the image has an alpha channel.
-        is_selected: Whether the image is selected for compression.
-        thumbnail: PIL Image object for preview display.
-    """
-    path: Path
-    filename: str
-    original_size: int
-    compressed_size: Optional[int] = None
-    dimensions: Tuple[int, int] = (0, 0)
-    format: str = ""
-    has_alpha: bool = False
-    is_selected: bool = False
-    thumbnail: Optional[Image.Image] = None
-
-    def get_size_display(self) -> str:
-        """Return human-readable file size."""
-        return format_file_size(self.original_size)
-
-    def get_savings_display(self) -> str:
-        """Return compression savings as string."""
-        if self.compressed_size is None:
-            return "—"
-        saved = self.original_size - self.compressed_size
-        percent = (saved / self.original_size) * 100 if self.original_size > 0 else 0
-        return f"-{percent:.1f}%"
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -161,15 +111,7 @@ class ImageInfo:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def format_file_size(size_bytes: int) -> str:
-    """
-    Convert bytes to human-readable format.
-
-    Args:
-        size_bytes: File size in bytes.
-
-    Returns:
-        Formatted string like "1.5 MB" or "256 KB".
-    """
+    """Convert bytes to human-readable format."""
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size_bytes < 1024:
             return f"{size_bytes:.1f} {unit}"
@@ -183,21 +125,12 @@ def get_image_extensions() -> Tuple[str, ...]:
 
 
 def scan_for_images(directory: Path) -> List[Path]:
-    """
-    Recursively scan directory for image files.
-
-    Args:
-        directory: Root directory to scan.
-
-    Returns:
-        List of Path objects pointing to image files.
-    """
+    """Recursively scan directory for image files."""
     images = []
     extensions = get_image_extensions()
 
     for root, dirs, files in os.walk(directory):
-        # Skip hidden directories and venv
-        dirs[:] = [d for d in dirs if not d.startswith('.') and d != 'venv' and d != '.venv']
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in ('venv', '.venv', 'node_modules')]
 
         for file in files:
             if file.startswith('.'):
@@ -211,20 +144,10 @@ def scan_for_images(directory: Path) -> List[Path]:
     return sorted(images)
 
 
-def create_thumbnail(image_path: Path, size: Tuple[int, int] = (120, 120)) -> Optional[Image.Image]:
-    """
-    Create a thumbnail preview of an image.
-
-    Args:
-        image_path: Path to the source image.
-        size: Maximum dimensions for the thumbnail.
-
-    Returns:
-        PIL Image object as thumbnail, or None on error.
-    """
+def create_thumbnail_base64(image_path: Path, size: Tuple[int, int] = (150, 150)) -> str:
+    """Create a base64-encoded thumbnail preview of an image."""
     try:
         with Image.open(image_path) as img:
-            # Convert to RGB if necessary for display
             if img.mode in ('RGBA', 'LA', 'P'):
                 background = Image.new('RGBA', img.size, (240, 240, 240, 255))
                 if img.mode == 'P':
@@ -237,18 +160,19 @@ def create_thumbnail(image_path: Path, size: Tuple[int, int] = (120, 120)) -> Op
             elif img.mode != 'RGB':
                 img = img.convert('RGB')
 
-            # Create thumbnail maintaining aspect ratio
             img.thumbnail(size, Image.Resampling.LANCZOS)
 
             # Create padded square thumbnail
-            thumb = Image.new('RGB', size, (240, 240, 240))
+            thumb = Image.new('RGB', size, (250, 250, 250))
             offset = ((size[0] - img.width) // 2, (size[1] - img.height) // 2)
             thumb.paste(img, offset)
 
-            return thumb
+            buffer = io.BytesIO()
+            thumb.save(buffer, format='JPEG', quality=85)
+            return base64.b64encode(buffer.getvalue()).decode('utf-8')
     except Exception as e:
         print(f"Error creating thumbnail for {image_path}: {e}")
-        return None
+        return ""
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -256,83 +180,46 @@ def create_thumbnail(image_path: Path, size: Tuple[int, int] = (120, 120)) -> Op
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ImageCompressor:
-    """
-    Core image compression engine.
-
-    Handles the actual compression of images using various algorithms
-    optimized for each image format.
-    """
+    """Core image compression engine."""
 
     def __init__(self, config: CompressionConfig = None):
-        """Initialize the compressor with configuration."""
         self.config = config or CompressionConfig()
 
-    def get_image_info(self, image_path: Path) -> ImageInfo:
+    def get_image_info(self, image_path: Path) -> Dict:
         """Gather comprehensive information about an image file."""
         stat = image_path.stat()
 
         with Image.open(image_path) as img:
-            info = ImageInfo(
-                path=image_path,
-                filename=image_path.name,
-                original_size=stat.st_size,
-                dimensions=(img.width, img.height),
-                format=img.format or image_path.suffix.upper().replace('.', ''),
-                has_alpha=img.mode in ('RGBA', 'LA', 'PA'),
-                thumbnail=create_thumbnail(image_path)
-            )
+            return {
+                'path': str(image_path),
+                'filename': image_path.name,
+                'original_size': stat.st_size,
+                'size_display': format_file_size(stat.st_size),
+                'dimensions': f"{img.width} × {img.height}",
+                'width': img.width,
+                'height': img.height,
+                'format': img.format or image_path.suffix.upper().replace('.', ''),
+                'thumbnail': create_thumbnail_base64(image_path)
+            }
 
-        return info
-
-    def compress_image(
-        self,
-        image_path: Path,
-        output_path: Optional[Path] = None,
-        progress_callback: Optional[Callable[[str], None]] = None
-    ) -> Tuple[bool, int, str]:
-        """
-        Compress an image file while preserving dimensions.
-
-        Args:
-            image_path: Path to the source image.
-            output_path: Where to save compressed image.
-            progress_callback: Optional function to report progress.
-
-        Returns:
-            Tuple of (success: bool, new_size: int, message: str).
-        """
-        if output_path is None:
-            output_path = image_path
-
+    def compress_image(self, image_path: Path) -> Tuple[bool, int, str]:
+        """Compress an image file while preserving dimensions."""
         try:
+            original_size = image_path.stat().st_size
+
             # Create backup if configured
-            if self.config.create_backup and output_path == image_path:
+            if self.config.create_backup:
                 backup_path = image_path.parent / f"{image_path.stem}{self.config.backup_suffix}{image_path.suffix}"
                 if not backup_path.exists():
                     shutil.copy2(image_path, backup_path)
-                    if progress_callback:
-                        progress_callback(f"Created backup: {backup_path.name}")
 
-            # Open and process image
             with Image.open(image_path) as img:
-                original_format = img.format
+                original_format = img.format or image_path.suffix.upper().replace('.', '')
+                save_kwargs = self._get_save_params(original_format)
 
-                if progress_callback:
-                    progress_callback(f"Processing {image_path.name} ({img.width}x{img.height})")
-
-                # Determine output format
-                output_format = self.config.output_format or original_format
-                if output_format is None:
-                    output_format = image_path.suffix.upper().replace('.', '')
-
-                # Prepare save parameters based on format
-                save_kwargs = self._get_save_params(img, output_format)
-
-                # Save to buffer first to get size
                 buffer = io.BytesIO()
 
-                # Handle format-specific processing
-                if output_format.upper() in ('JPEG', 'JPG'):
+                if original_format.upper() in ('JPEG', 'JPG'):
                     if img.mode in ('RGBA', 'LA', 'PA', 'P'):
                         background = Image.new('RGB', img.size, (255, 255, 255))
                         if img.mode == 'P':
@@ -344,38 +231,33 @@ class ImageCompressor:
                         img = background
                     elif img.mode != 'RGB':
                         img = img.convert('RGB')
-
                     img.save(buffer, format='JPEG', **save_kwargs)
 
-                elif output_format.upper() == 'PNG':
+                elif original_format.upper() == 'PNG':
                     img_to_save = self._optimize_png(img)
                     img_to_save.save(buffer, format='PNG', **save_kwargs)
 
-                elif output_format.upper() == 'WEBP':
+                elif original_format.upper() == 'WEBP':
                     img.save(buffer, format='WEBP', **save_kwargs)
 
                 else:
-                    img.save(buffer, format=output_format, **save_kwargs)
+                    img.save(buffer, format=original_format, **save_kwargs)
 
-                # Get compressed size
                 compressed_size = buffer.tell()
 
-                # Only save if we achieved compression
-                original_size = image_path.stat().st_size
                 if compressed_size < original_size:
                     buffer.seek(0)
-                    with open(output_path, 'wb') as f:
+                    with open(image_path, 'wb') as f:
                         f.write(buffer.read())
-
                     savings = ((original_size - compressed_size) / original_size) * 100
-                    return True, compressed_size, f"Compressed: {savings:.1f}% smaller"
+                    return True, compressed_size, f"-{savings:.1f}%"
                 else:
-                    return True, original_size, "Already optimized (no changes made)"
+                    return True, original_size, "Already optimized"
 
         except Exception as e:
             return False, 0, f"Error: {str(e)}"
 
-    def _get_save_params(self, img: Image.Image, format: str) -> Dict:
+    def _get_save_params(self, format: str) -> Dict:
         """Get format-specific save parameters."""
         format_upper = format.upper()
 
@@ -385,33 +267,24 @@ class ImageCompressor:
                 'optimize': True,
                 'progressive': self.config.progressive_jpeg,
             }
-
         elif format_upper == 'PNG':
             return {
                 'optimize': self.config.png_optimize,
                 'compress_level': self.config.png_compress_level,
             }
-
         elif format_upper == 'WEBP':
-            return {
-                'quality': self.config.quality,
-                'method': 6,
-            }
-
+            return {'quality': self.config.quality, 'method': 6}
         elif format_upper == 'GIF':
             return {'optimize': True}
-
         return {}
 
     def _optimize_png(self, img: Image.Image) -> Image.Image:
         """Apply PNG-specific optimizations."""
-        # Check if alpha channel is actually used
         if img.mode == 'RGBA':
             alpha = img.split()[-1]
             if alpha.getextrema() == (255, 255):
                 img = img.convert('RGB')
 
-        # For images with limited colors, try palette conversion
         if img.mode == 'RGB':
             colors = img.getcolors(maxcolors=256)
             if colors is not None:
@@ -421,536 +294,636 @@ class ImageCompressor:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# GUI APPLICATION
+# WEB SERVER
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class ImageCard(tk.Frame):
-    """A card widget displaying an image preview with selection capability."""
-
-    def __init__(self, parent, image_info: ImageInfo, on_select_change=None, **kwargs):
-        super().__init__(parent, **kwargs)
-
-        self.image_info = image_info
-        self.on_select_change = on_select_change
-        self._photo_image = None
-
-        self.configure(
-            bg='#ffffff',
-            highlightbackground='#e0e0e0',
-            highlightthickness=2,
-            padx=10,
-            pady=10
-        )
-
-        self._setup_ui()
-
-    def _setup_ui(self):
-        """Create and arrange UI elements."""
-        # Selection checkbox
-        self.var = tk.BooleanVar(value=self.image_info.is_selected)
-        self.checkbox = tk.Checkbutton(
-            self,
-            variable=self.var,
-            command=self._on_checkbox_change,
-            bg='#ffffff',
-            activebackground='#ffffff'
-        )
-        self.checkbox.grid(row=0, column=0, sticky='nw')
-
-        # Thumbnail
-        self.thumb_frame = tk.Frame(self, bg='#f0f0f0', width=120, height=120)
-        self.thumb_frame.grid(row=0, column=1, rowspan=3, padx=(5, 10), pady=5)
-        self.thumb_frame.grid_propagate(False)
-
-        self.thumbnail_label = tk.Label(self.thumb_frame, bg='#f0f0f0')
-        if self.image_info.thumbnail:
-            self._photo_image = ImageTk.PhotoImage(self.image_info.thumbnail)
-            self.thumbnail_label.configure(image=self._photo_image)
-        else:
-            self.thumbnail_label.configure(text="No Preview")
-        self.thumbnail_label.place(relx=0.5, rely=0.5, anchor='center')
-
-        # Make thumbnail clickable
-        self.thumbnail_label.bind("<Button-1>", lambda e: self._toggle_selection())
-        self.thumb_frame.bind("<Button-1>", lambda e: self._toggle_selection())
-
-        # Filename
-        filename = self.image_info.filename
-        if len(filename) > 22:
-            filename = filename[:19] + "..."
-        self.name_label = tk.Label(
-            self,
-            text=filename,
-            font=('Helvetica', 11, 'bold'),
-            bg='#ffffff',
-            anchor='w'
-        )
-        self.name_label.grid(row=0, column=2, sticky='w', padx=5)
-
-        # Dimensions
-        dims = f"{self.image_info.dimensions[0]} × {self.image_info.dimensions[1]}"
-        self.dims_label = tk.Label(
-            self,
-            text=dims,
-            font=('Helvetica', 10),
-            fg='#666666',
-            bg='#ffffff',
-            anchor='w'
-        )
-        self.dims_label.grid(row=1, column=2, sticky='w', padx=5)
-
-        # File size
-        self.size_label = tk.Label(
-            self,
-            text=self.image_info.get_size_display(),
-            font=('Helvetica', 10),
-            bg='#ffffff',
-            anchor='w'
-        )
-        self.size_label.grid(row=2, column=2, sticky='w', padx=5)
-
-        # Status
-        self.status_label = tk.Label(
-            self,
-            text="—",
-            font=('Helvetica', 11, 'bold'),
-            fg='#999999',
-            bg='#ffffff',
-            width=8,
-            anchor='e'
-        )
-        self.status_label.grid(row=0, column=3, rowspan=3, padx=10, sticky='e')
-
-        self.grid_columnconfigure(2, weight=1)
-
-    def _toggle_selection(self):
-        """Toggle checkbox selection state."""
-        self.var.set(not self.var.get())
-        self._on_checkbox_change()
+HTML_TEMPLATE = '''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Compressor Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #f5f5f7;
+            color: #1d1d1f;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: white;
+            padding: 20px 40px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1d1d1f;
+        }
+
+        .header p {
+            color: #86868b;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            padding: 20px 40px;
+            background: #f5f5f7;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #0071e3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0077ed;
+        }
+
+        .btn-primary:disabled {
+            background: #86868b;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #1d1d1f;
+            border: 1px solid #d2d2d7;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f7;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-left: auto;
+        }
+
+        .quality-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quality-control input[type="range"] {
+            width: 120px;
+            accent-color: #0071e3;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .checkbox-label input {
+            width: 18px;
+            height: 18px;
+            accent-color: #0071e3;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 16px;
+            padding: 0 40px 40px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .card.selected {
+            border-color: #0071e3;
+            background: #f0f7ff;
+        }
+
+        .card-checkbox {
+            width: 22px;
+            height: 22px;
+            accent-color: #0071e3;
+            cursor: pointer;
+        }
+
+        .card-thumbnail {
+            width: 100px;
+            height: 100px;
+            border-radius: 8px;
+            object-fit: cover;
+            background: #f5f5f7;
+        }
+
+        .card-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-filename {
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 4px;
+        }
+
+        .card-meta {
+            color: #86868b;
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .card-status {
+            font-weight: 600;
+            font-size: 14px;
+            min-width: 70px;
+            text-align: right;
+        }
+
+        .card-status.success {
+            color: #34c759;
+        }
+
+        .card-status.neutral {
+            color: #86868b;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 16px 40px;
+            box-shadow: 0 -1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .selection-info {
+            font-size: 14px;
+            color: #1d1d1f;
+        }
+
+        .progress-container {
+            flex: 1;
+            display: none;
+        }
+
+        .progress-container.active {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #e5e5ea;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #0071e3;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .progress-text {
+            font-size: 12px;
+            color: #86868b;
+            margin-top: 4px;
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        .summary {
+            background: #f0f7ff;
+            border: 1px solid #0071e3;
+            border-radius: 8px;
+            padding: 16px 24px;
+            margin: 0 40px 100px;
+            display: none;
+        }
+
+        .summary.visible {
+            display: block;
+        }
+
+        .summary h3 {
+            color: #0071e3;
+            margin-bottom: 8px;
+        }
+
+        .summary p {
+            color: #1d1d1f;
+            font-size: 14px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 40px;
+            color: #86868b;
+        }
+
+        .empty-state h2 {
+            font-size: 20px;
+            margin-bottom: 8px;
+            color: #1d1d1f;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Image Compressor Pro</h1>
+        <p id="subtitle">Loading images...</p>
+    </div>
+
+    <div class="toolbar">
+        <button class="btn btn-secondary" onclick="refreshImages()">↻ Refresh</button>
+        <button class="btn btn-secondary" onclick="selectAll()">Select All</button>
+        <button class="btn btn-secondary" onclick="deselectAll()">Deselect All</button>
+
+        <div class="controls">
+            <div class="quality-control">
+                <span>Quality:</span>
+                <input type="range" id="quality" min="50" max="100" value="85" oninput="updateQualityLabel()">
+                <span id="quality-label">85%</span>
+            </div>
+
+            <label class="checkbox-label">
+                <input type="checkbox" id="backup" checked>
+                Create Backups
+            </label>
+        </div>
+    </div>
+
+    <div class="grid" id="image-grid"></div>
+
+    <div class="summary" id="summary">
+        <h3>Compression Complete</h3>
+        <p id="summary-text"></p>
+    </div>
+
+    <div class="footer">
+        <span class="selection-info" id="selection-info">0 images selected</span>
+
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="progress-text" id="progress-text">Compressing...</div>
+        </div>
+
+        <div class="spacer"></div>
+
+        <button class="btn btn-primary" id="compress-btn" onclick="compressSelected()">
+            Compress Selected
+        </button>
+    </div>
+
+    <script>
+        let images = [];
+        let selectedPaths = new Set();
+
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/images');
+                images = await response.json();
+                renderGrid();
+                document.getElementById('subtitle').textContent =
+                    `Found ${images.length} images in project`;
+            } catch (error) {
+                console.error('Error loading images:', error);
+            }
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('image-grid');
+
+            if (images.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <h2>No images found</h2>
+                        <p>No image files were found in the project directory.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = images.map((img, index) => `
+                <div class="card ${selectedPaths.has(img.path) ? 'selected' : ''}"
+                     onclick="toggleSelect('${img.path}')" data-path="${img.path}">
+                    <input type="checkbox" class="card-checkbox"
+                           ${selectedPaths.has(img.path) ? 'checked' : ''}
+                           onclick="event.stopPropagation(); toggleSelect('${img.path}')">
+                    <img class="card-thumbnail"
+                         src="data:image/jpeg;base64,${img.thumbnail}"
+                         alt="${img.filename}">
+                    <div class="card-info">
+                        <div class="card-filename" title="${img.filename}">${img.filename}</div>
+                        <div class="card-meta">${img.dimensions}</div>
+                        <div class="card-meta" id="size-${index}">${img.size_display}</div>
+                    </div>
+                    <div class="card-status neutral" id="status-${index}">—</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleSelect(path) {
+            if (selectedPaths.has(path)) {
+                selectedPaths.delete(path);
+            } else {
+                selectedPaths.add(path);
+            }
+            updateUI();
+        }
+
+        function selectAll() {
+            images.forEach(img => selectedPaths.add(img.path));
+            updateUI();
+        }
+
+        function deselectAll() {
+            selectedPaths.clear();
+            updateUI();
+        }
+
+        function updateUI() {
+            // Update cards
+            document.querySelectorAll('.card').forEach(card => {
+                const path = card.dataset.path;
+                const isSelected = selectedPaths.has(path);
+                card.classList.toggle('selected', isSelected);
+                card.querySelector('.card-checkbox').checked = isSelected;
+            });
+
+            // Update selection info
+            const totalSize = images
+                .filter(img => selectedPaths.has(img.path))
+                .reduce((sum, img) => sum + img.original_size, 0);
+
+            const sizeStr = formatSize(totalSize);
+            document.getElementById('selection-info').textContent =
+                `${selectedPaths.size} images selected${selectedPaths.size > 0 ? ' (' + sizeStr + ')' : ''}`;
+        }
+
+        function formatSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let i = 0;
+            while (bytes >= 1024 && i < units.length - 1) {
+                bytes /= 1024;
+                i++;
+            }
+            return bytes.toFixed(1) + ' ' + units[i];
+        }
+
+        function updateQualityLabel() {
+            const value = document.getElementById('quality').value;
+            document.getElementById('quality-label').textContent = value + '%';
+        }
+
+        async function compressSelected() {
+            if (selectedPaths.size === 0) {
+                alert('Please select at least one image to compress.');
+                return;
+            }
+
+            const btn = document.getElementById('compress-btn');
+            const progressContainer = document.getElementById('progress-container');
+            const progressFill = document.getElementById('progress-fill');
+            const progressText = document.getElementById('progress-text');
+
+            btn.disabled = true;
+            btn.textContent = 'Compressing...';
+            progressContainer.classList.add('active');
+
+            const paths = Array.from(selectedPaths);
+            const quality = document.getElementById('quality').value;
+            const backup = document.getElementById('backup').checked;
+
+            let totalOriginal = 0;
+            let totalCompressed = 0;
+
+            for (let i = 0; i < paths.length; i++) {
+                const path = paths[i];
+                const imgIndex = images.findIndex(img => img.path === path);
+
+                progressFill.style.width = ((i + 1) / paths.length * 100) + '%';
+                progressText.textContent = `Compressing ${i + 1}/${paths.length}: ${images[imgIndex].filename}`;
+
+                try {
+                    const response = await fetch('/api/compress', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({path, quality: parseInt(quality), backup})
+                    });
+
+                    const result = await response.json();
+
+                    totalOriginal += images[imgIndex].original_size;
+                    totalCompressed += result.new_size;
+
+                    // Update UI
+                    const statusEl = document.getElementById('status-' + imgIndex);
+                    const sizeEl = document.getElementById('size-' + imgIndex);
+
+                    if (result.success) {
+                        statusEl.textContent = result.savings;
+                        statusEl.className = 'card-status ' + (result.savings.startsWith('-') ? 'success' : 'neutral');
+                        sizeEl.textContent = formatSize(result.new_size);
+                    } else {
+                        statusEl.textContent = 'Error';
+                        statusEl.className = 'card-status neutral';
+                    }
+                } catch (error) {
+                    console.error('Error compressing:', error);
+                }
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Compress Selected';
+            progressContainer.classList.remove('active');
+
+            // Show summary
+            const saved = totalOriginal - totalCompressed;
+            const percent = totalOriginal > 0 ? (saved / totalOriginal * 100).toFixed(1) : 0;
+
+            document.getElementById('summary-text').textContent =
+                `Compressed ${paths.length} images. ` +
+                `Original: ${formatSize(totalOriginal)} → Compressed: ${formatSize(totalCompressed)}. ` +
+                `Saved: ${formatSize(saved)} (${percent}%)`;
+            document.getElementById('summary').classList.add('visible');
+
+            setTimeout(() => {
+                document.getElementById('summary').classList.remove('visible');
+            }, 10000);
+        }
+
+        function refreshImages() {
+            selectedPaths.clear();
+            document.getElementById('summary').classList.remove('visible');
+            loadImages();
+        }
+
+        // Load images on page load
+        loadImages();
+    </script>
+</body>
+</html>
+'''
+
+
+class CompressorHandler(SimpleHTTPRequestHandler):
+    """HTTP request handler for the image compressor web interface."""
+
+    compressor = ImageCompressor()
+    project_dir = Path.cwd()
+
+    def do_GET(self):
+        """Handle GET requests."""
+        parsed = urlparse(self.path)
+
+        if parsed.path == '/' or parsed.path == '/index.html':
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.end_headers()
+            self.wfile.write(HTML_TEMPLATE.encode())
+
+        elif parsed.path == '/api/images':
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
 
-    def _on_checkbox_change(self):
-        """Handle checkbox state change."""
-        is_selected = self.var.get()
-        self.image_info.is_selected = is_selected
-
-        if is_selected:
-            self.configure(highlightbackground='#3B82F6', highlightthickness=3)
-        else:
-            self.configure(highlightbackground='#e0e0e0', highlightthickness=2)
-
-        if self.on_select_change:
-            self.on_select_change(self.image_info.path, is_selected)
-
-    def set_selected(self, selected: bool):
-        """Programmatically set selection state."""
-        self.var.set(selected)
-        self._on_checkbox_change()
-
-    def update_compression_status(self, new_size: Optional[int], message: str = ""):
-        """Update the card to show compression results."""
-        if new_size is not None and new_size < self.image_info.original_size:
-            self.image_info.compressed_size = new_size
-            savings = self.image_info.get_savings_display()
-            self.status_label.configure(text=savings, fg='#22C55E')
-            self.size_label.configure(text=format_file_size(new_size))
-        elif message:
-            self.status_label.configure(text="✓", fg='#666666')
-
-
-class ScrollableImageGrid(tk.Frame):
-    """Scrollable container for image cards in a grid layout."""
-
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, **kwargs)
-
-        self.cards: Dict[Path, ImageCard] = {}
-        self.on_selection_change = None
-
-        # Create canvas with scrollbar
-        self.canvas = tk.Canvas(self, bg='#f5f5f5', highlightthickness=0)
-        self.scrollbar = ttk.Scrollbar(self, orient='vertical', command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas, bg='#f5f5f5')
-
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        )
-
-        self.canvas_frame = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor='nw')
-        self.canvas.configure(yscrollcommand=self.scrollbar.set)
-
-        # Bind canvas resize
-        self.canvas.bind('<Configure>', self._on_canvas_configure)
-
-        # Mouse wheel scrolling
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
-
-        self.canvas.pack(side='left', fill='both', expand=True)
-        self.scrollbar.pack(side='right', fill='y')
-
-    def _on_canvas_configure(self, event):
-        """Handle canvas resize."""
-        self.canvas.itemconfig(self.canvas_frame, width=event.width)
-
-    def _on_mousewheel(self, event):
-        """Handle mouse wheel scrolling."""
-        self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-
-    def add_image(self, image_info: ImageInfo) -> ImageCard:
-        """Add an image card to the grid."""
-        card = ImageCard(
-            self.scrollable_frame,
-            image_info,
-            on_select_change=self._handle_selection_change
-        )
-
-        row = len(self.cards) // 2
-        col = len(self.cards) % 2
-
-        card.grid(row=row, column=col, padx=8, pady=8, sticky='ew')
-
-        self.cards[image_info.path] = card
-
-        self.scrollable_frame.grid_columnconfigure(0, weight=1)
-        self.scrollable_frame.grid_columnconfigure(1, weight=1)
-
-        return card
-
-    def clear(self):
-        """Remove all cards from the grid."""
-        for card in self.cards.values():
-            card.destroy()
-        self.cards.clear()
-
-    def select_all(self):
-        """Select all image cards."""
-        for card in self.cards.values():
-            card.set_selected(True)
-
-    def deselect_all(self):
-        """Deselect all image cards."""
-        for card in self.cards.values():
-            card.set_selected(False)
-
-    def get_selected(self) -> List[ImageInfo]:
-        """Get list of selected ImageInfo objects."""
-        return [card.image_info for card in self.cards.values() if card.image_info.is_selected]
-
-    def get_card(self, path: Path) -> Optional[ImageCard]:
-        """Get card by image path."""
-        return self.cards.get(path)
-
-    def _handle_selection_change(self, path: Path, selected: bool):
-        """Handle selection change from a card."""
-        if self.on_selection_change:
-            self.on_selection_change()
-
-
-class ImageCompressorApp(tk.Tk):
-    """Main application window for the Image Compressor."""
-
-    def __init__(self):
-        super().__init__()
-
-        self.title("Image Compressor Pro")
-        self.geometry("950x700")
-        self.minsize(800, 600)
-        self.configure(bg='#f5f5f5')
-
-        # Initialize components
-        self.compressor = ImageCompressor()
-        self.images: List[ImageInfo] = []
-        self.project_dir = Path.cwd()
-
-        # Configure style
-        self.style = ttk.Style()
-        self.style.theme_use('clam')
-
-        # Build UI
-        self._setup_ui()
-
-        # Load images on startup
-        self.after(100, self._scan_images)
-
-    def _setup_ui(self):
-        """Create and arrange all UI components."""
-        # Header
-        self.header_frame = tk.Frame(self, bg='#ffffff', pady=15)
-        self.header_frame.pack(fill='x', padx=0)
-
-        header_inner = tk.Frame(self.header_frame, bg='#ffffff')
-        header_inner.pack(fill='x', padx=20)
-
-        self.title_label = tk.Label(
-            header_inner,
-            text="Image Compressor Pro",
-            font=('Helvetica', 20, 'bold'),
-            bg='#ffffff',
-            fg='#1a1a1a'
-        )
-        self.title_label.pack(side='left')
-
-        self.subtitle_label = tk.Label(
-            header_inner,
-            text="Scanning for images...",
-            font=('Helvetica', 11),
-            bg='#ffffff',
-            fg='#666666'
-        )
-        self.subtitle_label.pack(side='left', padx=(15, 0))
-
-        # Toolbar
-        self.toolbar_frame = tk.Frame(self, bg='#f5f5f5', pady=10)
-        self.toolbar_frame.pack(fill='x', padx=20)
-
-        self.refresh_btn = tk.Button(
-            self.toolbar_frame,
-            text="↻ Refresh",
-            command=self._scan_images,
-            font=('Helvetica', 10),
-            padx=15,
-            pady=5
-        )
-        self.refresh_btn.pack(side='left', padx=(0, 10))
-
-        self.select_all_btn = tk.Button(
-            self.toolbar_frame,
-            text="Select All",
-            command=self._select_all,
-            font=('Helvetica', 10),
-            padx=15,
-            pady=5
-        )
-        self.select_all_btn.pack(side='left', padx=5)
-
-        self.deselect_all_btn = tk.Button(
-            self.toolbar_frame,
-            text="Deselect All",
-            command=self._deselect_all,
-            font=('Helvetica', 10),
-            padx=15,
-            pady=5
-        )
-        self.deselect_all_btn.pack(side='left', padx=5)
-
-        # Image Grid
-        self.image_grid = ScrollableImageGrid(self, bg='#f5f5f5')
-        self.image_grid.pack(fill='both', expand=True, padx=20, pady=10)
-        self.image_grid.on_selection_change = self._update_selection_count
-
-        # Footer
-        self.footer_frame = tk.Frame(self, bg='#ffffff', pady=15)
-        self.footer_frame.pack(fill='x', padx=0)
-
-        footer_inner = tk.Frame(self.footer_frame, bg='#ffffff')
-        footer_inner.pack(fill='x', padx=20)
-
-        # Selection count
-        self.selection_label = tk.Label(
-            footer_inner,
-            text="0 images selected",
-            font=('Helvetica', 11),
-            bg='#ffffff'
-        )
-        self.selection_label.pack(side='left')
-
-        # Quality control
-        quality_frame = tk.Frame(footer_inner, bg='#ffffff')
-        quality_frame.pack(side='left', padx=30)
-
-        self.quality_label = tk.Label(
-            quality_frame,
-            text="Quality: 85%",
-            font=('Helvetica', 10),
-            bg='#ffffff'
-        )
-        self.quality_label.pack(side='left', padx=(0, 10))
-
-        self.quality_var = tk.IntVar(value=85)
-        self.quality_slider = ttk.Scale(
-            quality_frame,
-            from_=50,
-            to=100,
-            variable=self.quality_var,
-            orient='horizontal',
-            length=120,
-            command=self._on_quality_change
-        )
-        self.quality_slider.pack(side='left')
-
-        # Backup checkbox
-        self.backup_var = tk.BooleanVar(value=True)
-        self.backup_checkbox = tk.Checkbutton(
-            footer_inner,
-            text="Create Backups",
-            variable=self.backup_var,
-            font=('Helvetica', 10),
-            bg='#ffffff',
-            activebackground='#ffffff'
-        )
-        self.backup_checkbox.pack(side='left', padx=20)
-
-        # Compress button
-        self.compress_btn = tk.Button(
-            footer_inner,
-            text="Compress Selected",
-            command=self._compress_selected,
-            font=('Helvetica', 11, 'bold'),
-            bg='#3B82F6',
-            fg='white',
-            padx=20,
-            pady=8,
-            relief='flat',
-            cursor='hand2'
-        )
-        self.compress_btn.pack(side='right')
-
-        # Progress bar (hidden by default)
-        self.progress_frame = tk.Frame(self.footer_frame, bg='#ffffff')
-        self.progress_bar = ttk.Progressbar(
-            self.progress_frame,
-            length=400,
-            mode='determinate'
-        )
-        self.progress_label = tk.Label(
-            self.progress_frame,
-            text="",
-            font=('Helvetica', 10),
-            bg='#ffffff',
-            fg='#666666'
-        )
-
-    def _on_quality_change(self, value):
-        """Handle quality slider change."""
-        quality = int(float(value))
-        self.quality_label.configure(text=f"Quality: {quality}%")
-        self.compressor.config.quality = quality
-
-    def _scan_images(self):
-        """Scan project directory for images."""
-        self.subtitle_label.configure(text="Scanning for images...")
-        self.image_grid.clear()
-        self.images.clear()
-
-        def scan_thread():
             image_paths = scan_for_images(self.project_dir)
+            images_data = []
 
             for path in image_paths:
                 try:
                     info = self.compressor.get_image_info(path)
-                    self.images.append(info)
-                    self.after(0, lambda i=info: self.image_grid.add_image(i))
+                    images_data.append(info)
                 except Exception as e:
                     print(f"Error loading {path}: {e}")
 
-            self.after(0, lambda: self.subtitle_label.configure(
-                text=f"Found {len(self.images)} images in {self.project_dir.name}"
-            ))
+            self.wfile.write(json.dumps(images_data).encode())
 
-        thread = threading.Thread(target=scan_thread, daemon=True)
-        thread.start()
-
-    def _select_all(self):
-        """Select all images."""
-        self.image_grid.select_all()
-        self._update_selection_count()
-
-    def _deselect_all(self):
-        """Deselect all images."""
-        self.image_grid.deselect_all()
-        self._update_selection_count()
-
-    def _update_selection_count(self):
-        """Update the selection count label."""
-        selected = self.image_grid.get_selected()
-        count = len(selected)
-        total_size = sum(img.original_size for img in selected)
-
-        if count == 0:
-            self.selection_label.configure(text="0 images selected")
         else:
-            self.selection_label.configure(
-                text=f"{count} images selected ({format_file_size(total_size)})"
-            )
+            self.send_error(404)
 
-    def _compress_selected(self):
-        """Compress all selected images."""
-        selected = self.image_grid.get_selected()
+    def do_POST(self):
+        """Handle POST requests."""
+        parsed = urlparse(self.path)
 
-        if not selected:
-            messagebox.showwarning("No Selection", "Please select at least one image to compress.")
-            return
+        if parsed.path == '/api/compress':
+            content_length = int(self.headers['Content-Length'])
+            post_data = json.loads(self.rfile.read(content_length))
 
-        # Update compressor config
-        self.compressor.config.create_backup = self.backup_var.get()
-        self.compressor.config.quality = self.quality_var.get()
+            path = Path(post_data['path'])
+            quality = post_data.get('quality', 85)
+            backup = post_data.get('backup', True)
 
-        # Show progress
-        self.progress_frame.pack(fill='x', padx=20, pady=(5, 0))
-        self.progress_bar.pack(side='left', padx=(0, 10))
-        self.progress_label.pack(side='left')
-        self.compress_btn.configure(state='disabled', text='Compressing...')
+            self.compressor.config.quality = quality
+            self.compressor.config.create_backup = backup
 
-        def compress_thread():
-            total = len(selected)
-            total_original = 0
-            total_compressed = 0
+            success, new_size, savings = self.compressor.compress_image(path)
 
-            for i, img_info in enumerate(selected):
-                progress = ((i + 1) / total) * 100
-                self.after(0, lambda p=progress: self.progress_bar.configure(value=p))
-                self.after(0, lambda n=img_info.filename: self.progress_label.configure(
-                    text=f"Compressing: {n}"
-                ))
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
 
-                success, new_size, message = self.compressor.compress_image(img_info.path)
+            result = {
+                'success': success,
+                'new_size': new_size,
+                'savings': savings
+            }
+            self.wfile.write(json.dumps(result).encode())
 
-                total_original += img_info.original_size
-                total_compressed += new_size if success else img_info.original_size
+        else:
+            self.send_error(404)
 
-                card = self.image_grid.get_card(img_info.path)
-                if card:
-                    self.after(0, lambda c=card, s=new_size if success else None, m=message:
-                              c.update_compression_status(s, m))
+    def log_message(self, format, *args):
+        """Suppress default logging."""
+        pass
 
-            self.after(0, self._compression_complete)
-
-            savings = total_original - total_compressed
-            percent = (savings / total_original) * 100 if total_original > 0 else 0
-
-            self.after(0, lambda: messagebox.showinfo(
-                "Compression Complete",
-                f"Compressed {total} images\n\n"
-                f"Original size: {format_file_size(total_original)}\n"
-                f"Compressed size: {format_file_size(total_compressed)}\n"
-                f"Total savings: {format_file_size(savings)} ({percent:.1f}%)"
-            ))
-
-        thread = threading.Thread(target=compress_thread, daemon=True)
-        thread.start()
-
-    def _compression_complete(self):
-        """Reset UI after compression completes."""
-        self.progress_frame.pack_forget()
-        self.compress_btn.configure(state='normal', text='Compress Selected')
-        self.progress_bar.configure(value=0)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# ENTRY POINT
-# ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
     """Application entry point."""
-    print("""
+    port = 8080
+    server_address = ('', port)
+
+    print(f"""
 ╔═══════════════════════════════════════════════════════════════════════════════╗
 ║                        IMAGE COMPRESSOR PRO                                    ║
-║                   Starting application...                                      ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
-    """)
 
-    app = ImageCompressorApp()
-    app.mainloop()
+  Server running at: http://localhost:{port}
+
+  Opening browser...
+
+  Press Ctrl+C to stop the server.
+
+""")
+
+    httpd = HTTPServer(server_address, CompressorHandler)
+
+    # Open browser after a short delay
+    def open_browser():
+        webbrowser.open(f'http://localhost:{port}')
+
+    timer = threading.Timer(0.5, open_browser)
+    timer.start()
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\n  Server stopped.")
+        httpd.shutdown()
 
 
 if __name__ == "__main__":
