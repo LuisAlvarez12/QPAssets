@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "images": [
+    {
+      "id": "icon-heart",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/icon-heart.png",
+      "filename": "icon-heart.png",
+      "checksum": "1"
+    },
+    {
+      "id": "icon-heart-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/icon-heart-style2.png",
+      "filename": "icon-heart-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "lines-action-center",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/lines-action-center.png",
+      "filename": "lines-action-center.png",
+      "checksum": "1"
+    },
+    {
+      "id": "lines-action-corner",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/lines-action-corner.png",
+      "filename": "lines-action-corner.png",
+      "checksum": "1"
+    },
+    {
+      "id": "rash-lines-horizontal",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/rash-lines-horizontal.png",
+      "filename": "rash-lines-horizontal.png",
+      "checksum": "1"
+    },
+    {
+      "id": "rash-lines-vertical",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/rash-lines-vertical.png",
+      "filename": "rash-lines-vertical.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-bubble",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-bubble.png",
+      "filename": "speech-bubble.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-style1",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-style1.png",
+      "filename": "speech-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-style2.png",
+      "filename": "speech-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-style3.png",
+      "filename": "speech-style3.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-style4",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-style4.png",
+      "filename": "speech-style4.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-style5",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-style5.png",
+      "filename": "speech-style5.png",
+      "checksum": "1"
+    },
+    {
+      "id": "speech-style6",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/speech-style6.png",
+      "filename": "speech-style6.png",
+      "checksum": "1"
+    },
+    {
+      "id": "tone-style1",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/tone-style1.png",
+      "filename": "tone-style1.png",
+      "checksum": "1"
+    },
+    {
+      "id": "tone-style2",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/tone-style2.png",
+      "filename": "tone-style2.png",
+      "checksum": "1"
+    },
+    {
+      "id": "tone-style3",
+      "url": "https://raw.githubusercontent.com/LuisAlvarez12/QPAssets/refs/heads/main/assets/images/tone-style3.png",
+      "filename": "tone-style3.png",
+      "checksum": "1"
+    }
+  ]
+}
