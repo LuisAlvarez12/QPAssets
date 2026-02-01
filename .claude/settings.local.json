@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(python3 -m pip install:*)",
+      "Bash(python3 -m venv:*)",
+      "Bash(source:*)",
+      "Bash(chmod:*)",
+      "Bash(python:*)",
+      "Bash(python3:*)",
+      "Bash(pyenv versions:*)",
+      "Bash(brew install:*)",
+      "Bash(find:*)",
+      "Bash(xargs:*)",
+      "Bash(~/.pyenv/versions/3.11.7/bin/python:*)",
+      "Bash(for v in ~/.pyenv/versions/*/bin/python)",
+      "Bash(do echo \"Testing $v\")",
+      "Bash($v -c \"import tkinter; print\\(''OK''\\)\")",
+      "Bash(done)",
+      "Bash(~/.pyenv/versions/3.10.12/bin/python:*)"
+    ]
+  }
+}
