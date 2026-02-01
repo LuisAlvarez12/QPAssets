@@ -824,7 +824,7 @@ class CompressorHandler(SimpleHTTPRequestHandler):
     """HTTP request handler for the image compressor web interface."""
 
     compressor = ImageCompressor()
-    project_dir = Path.cwd()
+    project_dir = Path(__file__).parent.parent  # Scan parent directory for images
 
     def do_GET(self):
         """Handle GET requests."""

@@ -3,29 +3,29 @@
 # Image Compressor Pro - Launch Script
 # ═══════════════════════════════════════════════════════════════════════════════
 #
-# This script activates the virtual environment and launches the Image Compressor.
-#
 # Usage:
+#   cd "compressor app"
 #   ./run_compressor.sh
 #
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# Navigate to project directory
 cd "$SCRIPT_DIR"
 
-# Check if virtual environment exists
+# Check if virtual environment exists, create if not
 if [ ! -d ".venv" ]; then
     echo "Creating virtual environment..."
-    python3 -m venv .venv
+    ~/.pyenv/versions/3.10.12/bin/python -m venv .venv
     source .venv/bin/activate
     echo "Installing dependencies..."
-    pip install -r requirements.txt --quiet
+    pip install Pillow --quiet
 else
     source .venv/bin/activate
 fi
 
-# Run the image compressor
+echo "Starting Image Compressor Pro..."
+echo "Open http://localhost:8080 in your browser"
+echo "Press Ctrl+C to stop"
+echo ""
+
 python image_compressor.py
